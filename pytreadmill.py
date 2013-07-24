@@ -23,6 +23,7 @@ ENQ = '\x05'
 NAK = '\x15'
 EOT = '\x04'
 STX = '\x02'
+ETX = '\x03'
 
 class PyTreadmill():
 	def __init__(self, port=0,baudrate=9600):
@@ -167,7 +168,7 @@ class PyTreadmill():
 
 		pass
 
-	def utouto(self):
+	def utouto(self,msg):
 		"""
 		Open line to communicate to treadmill (see section 5 in doc)
 		   <--msg read
@@ -175,12 +176,20 @@ class PyTreadmill():
 		 control msg-->
 		   <--ACK read 
 		"""
+		print "utouto function start"
 		#   <--msg read
 		res_read = self.com.read(1)
-		for count in range(22):
+		for count in range(30):
 			res_read = self.com.read(1)
 			dat = struct.unpack("c",res_read)
-			print dat,
+			if dat==ETX:
+				break
+			
+		res_read = self.com.read(1)
+		dat = struct.unpack("c",res_read)
+		res_read = self.com.read(1)
+		dat = struct.unpack("c",res_read)
+		
 		print "done"
 		
 		# ACK msg-->
@@ -189,25 +198,53 @@ class PyTreadmill():
 		print "done"
 
 		# control msg-->
-		#msg = '3 01 01 050 150 0000 000'
-		msg = '301010501500000000'
-		#msg = '3 01 01 030 000 0000 000'
-		msg = '301010300000000000'
 		msg = self.make_transmit_message(msg)
 		print "writing..."
 		self.message_transmission(msg)
 		print "done"
 		
 		#   <--ACK read 
-		print "reading..."
+		print "reading...",
 		res_read = self.com.read(1)
 		dat = struct.unpack("c", res_read)
-		print "dat = ", dat
+		print "dat = ", dat,
 		self.ack_check_from_tm(dat)
 		print "done"
+		print "utouto finction fin"
 
 
-		pass
+
+	def normal_mode(self):
+		"""
+		PC sends 'ACK' 
+		  <--message
+		ACK-->
+		"""
+		#  <--message
+		#res_read = self.com.read(1)
+		#for count in range(22):
+		#	res_read = self.com.read(1)
+		#	dat = struct.unpack("c",res_read)
+		#	print dat,
+		#print "done"
+		print "normal_mode func start"
+		for tmp in range(22):
+			res_read=self.com.read(1)
+			#res_read=self.com.read(22)
+			dat = struct.unpack("c",res_read)
+
+		#ACK-->
+		print "ack",
+		res_write = self.com.write(ACK)	 # 0x06 --> ACK
+		print "done"
+		print "normal_mode func end"
+
+	def stop_tm(self):
+		print "writing..."
+		res_write = self.com.write(EOT)	 # 0x06 --> ACK
+		print "done"
+		
+
 		
 	def reset(self):
 		self.com.flushInput()
@@ -277,7 +314,19 @@ def main(argv=None, exptime=2, freq_ctrl= 25 ):
 	trdm = PyTreadmill(port=port )
 	trdm.reset()
 	trdm.connect_tm()
-	trdm.utouto()
+
+	#msg = '3 01 01 050 150 0000 000'
+	msg = '301010501500000000'
+	#msg = '3 01 01 030 000 0000 000'
+	msg = '301010300000000000'
+	for tmp in range(10):
+		trdm.utouto(msg)
+	msg = '301010500000000000'
+	for tmp in range(10):
+		trdm.utouto(msg)
+	
+	trdm.stop_tm()
+
 	trdm.close()
 	#return results
 
